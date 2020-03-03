@@ -12,6 +12,7 @@ import pandas as pd
 import random 
 import argparse
 import pickle as pkl
+import winsound
 
 def get_test_input(input_dim, CUDA):
     img = cv2.imread("imgs/messi.jpg")
@@ -132,9 +133,10 @@ if __name__ == '__main__':
     # 读取视频流
     # cap = cv2.VideoCapture(url)
     cap = cv2.VideoCapture(0)
-
+    timeF = 20
     assert cap.isOpened(), 'Cannot capture source'
-
+    k = 0
+    n = 0 #计数
     frames = 0
     start = time.time()
     #这样才能在断开连接时重新连接上
@@ -178,24 +180,27 @@ if __name__ == '__main__':
             # print(x)
             list(map(lambda x: write(x, orig_im), output))
             list1 = list(map(lambda x: write1(x, orig_im), output))
-            print(list1)
-
             cv2.imshow("frame", orig_im)
             key = cv2.waitKey(1)
             if key & 0xFF == ord('q'):
                 break
             frames += 1
             # print("FPS of the video is {:5.2f}".format( frames / (time.time() - start)))
-            # if (n % timeF == 0):  # 每隔timeF帧进行存储操作
+
 
             i += 1
-            k = 0
-            for i in list1:
-                if list1.index(i) == 1:
-                    k = k + 1
-            if k != 0:
-                cv2.imwrite('camera/{}.jpg'.format(i), orig_im)  # 存储为图像
-            print(k)
+            n = n + 1
+            if (n % timeF == 0):  # 每隔timeF帧进行存储操作
+                for j in range(0,len(list1)):
+                    if list1[j] == 1:
+                        k = k + 1
+                    if list1[j] == 0:
+                        k = 0
+                if k != 0:
+                    cv2.imwrite('camera/{}.jpg'.format(i), orig_im)  # 当识别到未带安全帽时存储为图像
+
+                    winsound.Beep(600, 1000)#当识别到未带安全帽时，调用蜂鸣器
+
         else:
             #断开连接时 重新连接
             # st = time.time()
