@@ -1,15 +1,15 @@
 from __future__ import division
 import time
-import torch 
+import torch
 import torch.nn as nn
 from torch.autograd import Variable
 import numpy as np
-import cv2 
+import cv2
 from util import *
 from darknet import Darknet
 from preprocess import prep_image, inp_to_image
 import pandas as pd
-import random 
+import random
 import argparse
 import pickle as pkl
 import winsound
@@ -45,26 +45,23 @@ def write(x, img):
     c1 = tuple(x[1:3].int())
     c2 = tuple(x[3:5].int())
     cls = int(x[-1])
-    #发现有显示7 先暂时排除
-    if(cls == 7):
-        return ;
-    label = "{0}".format(classes[cls])
-    # color = random.choice(colors)
-    cv2.rectangle(img, c1, c2,colors[cls], 1)
-    t_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_PLAIN, 1 , 1)[0]
-    c2 = c1[0] + t_size[0] + 3, c1[1] + t_size[1] + 4
-    cv2.rectangle(img, c1, c2,colors[cls], -1)
-    cv2.putText(img, label, (c1[0], c1[1] + t_size[1] + 4), cv2.FONT_HERSHEY_PLAIN, 1, [225,255,255], 1);
-    return img
+    # #发现有显示7 先暂时排除
+    # if(cls == 7):
+    #     return ;
+    if(cls == 1 or cls == 0):
+        label = "{0}".format(classes[cls])
+        # color = random.choice(colors)
+        cv2.rectangle(img, c1, c2,colors[cls], 1)
+        t_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_PLAIN, 1 , 1)[0]
+        c2 = c1[0] + t_size[0] + 3, c1[1] + t_size[1] + 4
+        cv2.rectangle(img, c1, c2,colors[cls], -1)
+        cv2.putText(img, label, (c1[0], c1[1] + t_size[1] + 4), cv2.FONT_HERSHEY_PLAIN, 1, [225,255,255], 1);
+        return img
+    return
 
 def write1(x,img):
-    c1 = tuple(x[1:3].int())
-    c2 = tuple(x[3:5].int())
     cls = int(x[-1])
     m = 0
-    #发现有显示7 先暂时排除
-    if(cls == 7):
-        return
     if(cls == 1):
         m = 1
     return m
@@ -81,7 +78,7 @@ def arg_parse():
     parser.add_argument("--reso", dest = 'reso', help =
                         "Input resolution of the network. Increase to increase accuracy. Decrease to increase speed",
                         default = "160", type = str)
-    parser.add_argument("--weights_path", dest='weights_path', type=str, default="checkpoints/yolov3_ckpt_3.pth",
+    parser.add_argument("--weights_path", dest='weights_path', type=str, default="checkpoints/yolov3_ckpt_4.pth",
                         help="path to weights file")
     parser.add_argument("--cfg", dest='cfgfile', help="Config file", default="config/yolov3-custom.cfg", type=str)
     return parser.parse_args()
@@ -132,11 +129,11 @@ if __name__ == '__main__':
 
     # 读取视频流
     # cap = cv2.VideoCapture(url)
+    # 电脑摄像头
     cap = cv2.VideoCapture(0)
     timeF = 20
     assert cap.isOpened(), 'Cannot capture source'
     k = 0
-    n = 0 #计数
     frames = 0
     start = time.time()
     #这样才能在断开连接时重新连接上
@@ -184,13 +181,12 @@ if __name__ == '__main__':
             key = cv2.waitKey(1)
             if key & 0xFF == ord('q'):
                 break
-            frames += 1
+
             # print("FPS of the video is {:5.2f}".format( frames / (time.time() - start)))
 
-
-            i += 1
-            n = n + 1
-            if (n % timeF == 0):  # 每隔timeF帧进行存储操作
+            frames += 1
+            if (frames % timeF == 0):  # 每隔timeF帧进行存储操作
+                i = i + 1
                 for j in range(0,len(list1)):
                     if list1[j] == 1:
                         k = k + 1
