@@ -18,16 +18,22 @@ def create_modules(module_defs):
     Constructs module list of layer blocks from module configuration in module_defs
     """
     hyperparams = module_defs.pop(0)
+    # 我们不仅需要追踪前一层的卷积核数量，还需要追踪之前每个层。随着不断地迭代，我们将每个模块的输出卷积核数量添加到 output_filters 列表上。
     output_filters = [int(hyperparams["channels"])]
+    # module_list用于存储每个block,每个block对应cfg文件中一个块，类似[convolutional]里面就对应一个卷积块
     module_list = nn.ModuleList()
     for module_i, module_def in enumerate(module_defs):
+        # 这里每个块用nn.sequential()创建为了一个module,一个module有多个层
         modules = nn.Sequential()
 
         if module_def["type"] == "convolutional":
+            ''' 1. 卷积层 '''
             bn = int(module_def["batch_normalize"])
             filters = int(module_def["filters"])
             kernel_size = int(module_def["size"])
             pad = (kernel_size - 1) // 2
+            # 开始创建并添加相应层
+            # Add the convolutional layer
             modules.add_module(
                 f"conv_{module_i}",
                 nn.Conv2d(
@@ -39,8 +45,12 @@ def create_modules(module_defs):
                     bias=not bn,
                 ),
             )
+            # Add the Batch Norm Layer
             if bn:
                 modules.add_module(f"batch_norm_{module_i}", nn.BatchNorm2d(filters, momentum=0.9, eps=1e-5))
+            # Check the activation.
+            # It is either Linear or a Leaky ReLU for YOLO
+            # 给定参数负轴系数0.1
             if module_def["activation"] == "leaky":
                 modules.add_module(f"leaky_{module_i}", nn.LeakyReLU(0.1))
 
@@ -52,19 +62,23 @@ def create_modules(module_defs):
             maxpool = nn.MaxPool2d(kernel_size=kernel_size, stride=stride, padding=int((kernel_size - 1) // 2))
             modules.add_module(f"maxpool_{module_i}", maxpool)
 
+        # 2. upsampling layer
+        # 没有使用 Bilinear2dUpsampling
+        # 实际使用的为最近邻插值
         elif module_def["type"] == "upsample":
             upsample = Upsample(scale_factor=int(module_def["stride"]), mode="nearest")
             modules.add_module(f"upsample_{module_i}", upsample)
-
+        # route layer -> Empty layer
+        # route层的作用：当layer取值为正时，输出这个正数对应的层的特征，如果layer取值为负数，输出route层向后退layer层对应层的特征
         elif module_def["type"] == "route":
             layers = [int(x) for x in module_def["layers"].split(",")]
             filters = sum([output_filters[1:][i] for i in layers])
             modules.add_module(f"route_{module_i}", EmptyLayer())
-
+        # shortcut corresponds to skip connection
         elif module_def["type"] == "shortcut":
             filters = output_filters[1:][int(module_def["from"])]
-            modules.add_module(f"shortcut_{module_i}", EmptyLayer())
-
+            modules.add_module(f"shortcut_{module_i}", EmptyLayer()) #使用空的层，因为它还要执行一个非常简单的操作（加）。没必要更新 filters 变量,因为它只是将前一层的特征图添加到后面的层上而已。
+        # Yolo is the detection layer
         elif module_def["type"] == "yolo":
             anchor_idxs = [int(x) for x in module_def["mask"].split(",")]
             # Extract anchors
