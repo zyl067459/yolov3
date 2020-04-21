@@ -182,9 +182,8 @@ if __name__ == '__main__':
             if key & 0xFF == ord('q'):
                 break
 
-            # print("FPS of the video is {:5.2f}".format( frames / (time.time() - start)))
-
             frames += 1
+            print("FPS of the video is {:5.2f}".format(frames / (time.time() - start)))
             if (frames % timeF == 0):  # 每隔timeF帧进行存储操作
                 i = i + 1
                 for j in range(0,len(list1)):

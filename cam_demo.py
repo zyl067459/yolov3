@@ -49,14 +49,16 @@ def write(classes, colors, x, img):
     c1 = tuple(x[1:3].int())
     c2 = tuple(x[3:5].int())
     cls = int(x[-1])
-    label = "{0}".format(classes[cls])
-    # color = random.choice(colors)
-    cv2.rectangle(img, c1, c2, colors[cls], 1)
-    t_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_PLAIN, 1, 1)[0]
-    c2 = c1[0] + t_size[0] + 3, c1[1] + t_size[1] + 4
-    cv2.rectangle(img, c1, c2, colors[cls], -1)
-    cv2.putText(img, label, (c1[0], c1[1] + t_size[1] + 4), cv2.FONT_HERSHEY_PLAIN, 1, [225, 255, 255], 1);
-    return img
+    if (cls == 1 or cls == 0):
+        label = "{0}".format(classes[cls])
+        # color = random.choice(colors)
+        cv2.rectangle(img, c1, c2, colors[cls], 1)
+        t_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_PLAIN, 1, 1)[0]
+        c2 = c1[0] + t_size[0] + 3, c1[1] + t_size[1] + 4
+        cv2.rectangle(img, c1, c2, colors[cls], -1)
+        cv2.putText(img, label, (c1[0], c1[1] + t_size[1] + 4), cv2.FONT_HERSHEY_PLAIN, 1, [225, 255, 255], 1);
+        return img
+    return
 
 def write1(x,img):
     c1 = tuple(x[1:3].int())
@@ -91,9 +93,14 @@ def arg_parse():
 def image_put(q, user, pwd, ip, channel=1):
     # 根据摄像头设置IP及rtsp端口
     url = 'rtsp://admin:zyl123456@192.168.31.15:554/11'
-
+    start = 0
+    frames = 0
     # 读取视频流
     cap = cv2.VideoCapture(0)
+    # cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
+    # cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
+    # cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter.fourcc('M', 'J', 'P', 'G'))
+    cap.set(cv2.CAP_PROP_FPS,30)
 
     while True:
         is_opened, frame = cap.read()
@@ -109,11 +116,12 @@ def image_get(q, window_name):
     n = 0  # 计数
     frames = 0
     i = 0
+    start = 0
+    start = time.time()
 
     args = arg_parse()
     confidence = float(args.confidence)
     nms_thesh = float(args.nms_thresh)
-    start = 0
     CUDA = torch.cuda.is_available()
 
     num_classes = 2
@@ -156,12 +164,14 @@ def image_get(q, window_name):
 
         list(map(lambda x: write(classes, colors, x, orig_im), output))
         list1 = list(map(lambda x: write1(x, orig_im), output))
-        cv2.imshow(window_name, orig_im)
+        cv2.imshow(window_name, orig_im)#显示视频
         cv2.waitKey(1)
-
         frames += 1
-        i += 1
+        print("FPS of the video is {:5.2f}".format( frames / (time.time() - start)))
+
         n = n + 1
+        i += 1
+
         if (n % timeF == 0):  # 每隔timeF帧进行存储操作
             for j in range(0, len(list1)):
                 if list1[j] == 1:
@@ -171,7 +181,7 @@ def image_get(q, window_name):
             if k != 0:
                 cv2.imwrite('camera/{}.jpg'.format(i), orig_im)  # 当识别到未带安全帽时存储为图像
 
-                winsound.Beep(600, 1000)  # 当识别到未带安全帽时，调用蜂鸣器
+                # winsound.Beep(600, 1000)  # 当识别到未带安全帽时，调用蜂鸣器
 
 def run_single_camera():
     # user_name, user_pwd, camera_ip = "admin", "admin123456", "172.20.114.196"
